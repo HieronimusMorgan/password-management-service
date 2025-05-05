@@ -67,23 +67,23 @@ func (r *userKeysRepository) GetPrivateKeyByUserID(userID uint, clientID string)
 	}
 
 	salt, _ := base64.StdEncoding.DecodeString(userKey.Salt)
-	encPrivKey, _ := base64.StdEncoding.DecodeString(userKey.EncryptedPrivateKey)
+	encPrivateKey, _ := base64.StdEncoding.DecodeString(userKey.EncryptedPrivateKey)
 
 	aesKey := argon2.IDKey(
-		[]byte(clientID), // Input
-		salt,             // Salt
-		5,                // Time (iterations)
-		128*1024,         // Memory (128 MB)
-		8,                // Threads (parallelism)
-		32,               // Output key size
+		[]byte(clientID),
+		salt,
+		5,
+		128*1024,
+		8,
+		32,
 	)
 	block, _ := aes.NewCipher(aesKey)
 	gcm, _ := cipher.NewGCM(block)
-	nonce := encPrivKey[:gcm.NonceSize()]
-	cipherText := encPrivKey[gcm.NonceSize():]
-	privDER, err := gcm.Open(nil, nonce, cipherText, nil)
+	nonce := encPrivateKey[:gcm.NonceSize()]
+	cipherText := encPrivateKey[gcm.NonceSize():]
+	der, err := gcm.Open(nil, nonce, cipherText, nil)
 	if err != nil {
 		return nil, err
 	}
-	return x509.ParsePKCS1PrivateKey(privDER)
+	return x509.ParsePKCS1PrivateKey(der)
 }

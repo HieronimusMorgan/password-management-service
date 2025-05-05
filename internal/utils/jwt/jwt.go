@@ -22,7 +22,6 @@ type jwtService struct {
 	InternalSecretKey []byte
 }
 
-// NewJWTService initializes the JWT service
 func NewJWTService(jwtSecret string) Service {
 	return jwtService{
 		SecretKey:         []byte(jwtSecret),
@@ -30,7 +29,6 @@ func NewJWTService(jwtSecret string) Service {
 	}
 }
 
-// ValidateToken validates a JWT token and extracts claims
 func (j jwtService) ValidateToken(tokenString string) (*jwt.MapClaims, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -57,7 +55,6 @@ func (j jwtService) ValidateToken(tokenString string) (*jwt.MapClaims, error) {
 	return &claims, nil
 }
 
-// ValidateTokenAdmin checks if a user is an admin based on JWT claims
 func (j jwtService) ValidateTokenAdmin(tokenString string) (*jwt.MapClaims, error) {
 	claims, err := j.ValidateToken(tokenString)
 	if err != nil {
@@ -74,7 +71,6 @@ func (j jwtService) ValidateTokenAdmin(tokenString string) (*jwt.MapClaims, erro
 	return nil, errors.New("role not found in token claims")
 }
 
-// ExtractClaims extracts claims from a JWT token
 func (j jwtService) ExtractClaims(tokenString string) (*TokenClaims, error) {
 	claims, err := j.ValidateToken(tokenString)
 	if err != nil {
@@ -116,7 +112,6 @@ func (j jwtService) ExtractClaims(tokenString string) (*TokenClaims, error) {
 	return tc, nil
 }
 
-// GenerateInternalToken creates an internal JWT for service-to-service communication
 func (j jwtService) GenerateInternalToken(serviceName string) (string, error) {
 	claims := InternalClaims{
 		Service: serviceName,
@@ -133,7 +128,6 @@ func (j jwtService) GenerateInternalToken(serviceName string) (string, error) {
 	return token.SignedString(j.InternalSecretKey)
 }
 
-// ValidateInternalToken verifies an internal JWT token
 func (j jwtService) ValidateInternalToken(tokenString string) (*InternalClaims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &InternalClaims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
@@ -153,7 +147,6 @@ func (j jwtService) ValidateInternalToken(tokenString string) (*InternalClaims, 
 	return nil, jwt.ErrSignatureInvalid
 }
 
-// TokenClaims represents the claims extracted from a JWT token
 type TokenClaims struct {
 	Authorized bool     `json:"authorized"`
 	AccessUUID string   `json:"access_uuid"`
@@ -164,13 +157,11 @@ type TokenClaims struct {
 	Exp        int64    `json:"exp"`
 }
 
-// InternalClaims represents the claims used for service-to-service authentication
 type InternalClaims struct {
 	Service string `json:"service"`
 	jwt.RegisteredClaims
 }
 
-// ExtractTokenClaims extracts token claims from the Gin context
 func ExtractTokenClaims(c *gin.Context) (*TokenClaims, bool) {
 	tokenData, exists := c.Get("token")
 	if !exists {
@@ -187,15 +178,6 @@ func ExtractTokenClaims(c *gin.Context) (*TokenClaims, bool) {
 func HasAssetResource(resource []string) bool {
 	for _, res := range resource {
 		if res == "asset" {
-			return true
-		}
-	}
-	return false
-}
-
-func HasAssetGroupResource(resource []string) bool {
-	for _, res := range resource {
-		if res == "asset-group" {
 			return true
 		}
 	}

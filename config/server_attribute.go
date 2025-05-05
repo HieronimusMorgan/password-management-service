@@ -111,6 +111,7 @@ func (s *ServerConfig) initRepository() {
 		PasswordEntryKeysRepository: repository.NewPasswordEntryKeysRepository(*s.DB),
 		PasswordGroupRepository:     repository.NewPasswordGroupRepository(*s.DB),
 		PasswordHistoryRepository:   repository.NewPasswordHistoryRepository(*s.DB),
+		SharedPasswordRepository:    repository.NewSharedPasswordRepository(*s.DB),
 	}
 }
 

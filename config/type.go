@@ -42,6 +42,7 @@ type Repository struct {
 	PasswordEntryKeysRepository repository.PasswordEntryKeysRepository
 	PasswordGroupRepository     repository.PasswordGroupRepository
 	PasswordHistoryRepository   repository.PasswordHistoryRepository
+	SharedPasswordRepository    repository.SharedPasswordRepository
 }
 
 type Controller struct {

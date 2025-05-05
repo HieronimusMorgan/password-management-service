@@ -78,63 +78,63 @@ func (e *encryption) GenerateUserKey(data *user.Users) (*user.UserKey, error) {
 	}, nil
 }
 
-func (e *encryption) EncryptPasswordEntry(username, password, notes string, pubKey *rsa.PublicKey) (string, string, string, string, error) {
+func (e *encryption) EncryptPasswordEntry(username, password, notes string, publicKey *rsa.PublicKey) (string, string, string, string, error) {
 	aesKey := make([]byte, 32)
 	_, err := rand.Read(aesKey)
 	if err != nil {
 		return "", "", "", "", err
 	}
 
-	encUsername, err := encryptWithAES([]byte(username), aesKey)
+	encryptUsername, err := encryptWithAES([]byte(username), aesKey)
 	if err != nil {
 		return "", "", "", "", err
 	}
 
-	encPassword, err := encryptWithAES([]byte(password), aesKey)
+	encryptPassword, err := encryptWithAES([]byte(password), aesKey)
 	if err != nil {
 		return "", "", "", "", err
 	}
 
-	encNotes := ""
+	encryptNotes := ""
 	if notes != "" {
-		encNotes, err = encryptWithAES([]byte(notes), aesKey)
+		encryptNotes, err = encryptWithAES([]byte(notes), aesKey)
 		if err != nil {
 			return "", "", "", "", err
 		}
 	}
 
-	encryptedAESKey, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, pubKey, aesKey, nil)
+	encryptedAESKey, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, publicKey, aesKey, nil)
 	if err != nil {
 		return "", "", "", "", err
 	}
 
-	return encUsername, encPassword, encNotes, base64.StdEncoding.EncodeToString(encryptedAESKey), nil
+	return encryptUsername, encryptPassword, encryptNotes, base64.StdEncoding.EncodeToString(encryptedAESKey), nil
 }
 
-func (e *encryption) DecryptPasswordEntry(encUsername, encPassword, encNotes, wrappedAESKey string, privateKey *rsa.PrivateKey) (string, string, string, error) {
+func (e *encryption) DecryptPasswordEntry(encryptUsername, encryptPassword, encryptNotes, wrappedAESKey string, privateKey *rsa.PrivateKey) (string, string, string, error) {
 	aesKey, err := rsa.DecryptOAEP(sha256.New(), rand.Reader, privateKey, decode(wrappedAESKey), nil)
 	if err != nil {
 		return "", "", "", err
 	}
 
-	decUsername, err := decryptAES(encUsername, aesKey)
+	decodeUsername, err := decryptAES(encryptUsername, aesKey)
 	if err != nil {
 		return "", "", "", err
 	}
 
-	decPass, err := decryptAES(encPassword, aesKey)
+	decodePass, err := decryptAES(encryptPassword, aesKey)
 	if err != nil {
 		return "", "", "", err
 	}
 
-	decNotes := ""
-	if encNotes != "" {
-		decNotes, err = decryptAES(encNotes, aesKey)
+	decodeNotes := ""
+	if encryptNotes != "" {
+		decodeNotes, err = decryptAES(encryptNotes, aesKey)
 		if err != nil {
 			return "", "", "", err
 		}
 	}
-	return decUsername, decPass, decNotes, nil
+	return decodeUsername, decodePass, decodeNotes, nil
 }
 
 func encryptWithAES(plaintext, key []byte) (string, error) {
