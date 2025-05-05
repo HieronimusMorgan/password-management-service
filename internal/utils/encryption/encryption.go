@@ -6,13 +6,19 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/x509"
 	"encoding/base64"
 	"errors"
+	"fmt"
+	"golang.org/x/crypto/argon2"
+	"password-management-service/internal/models/user"
+	"time"
 )
 
 type Encryption interface {
-	EncryptPasswordEntry(password, notes string, pubKey *rsa.PublicKey) (string, string, string, error)
-	DecryptPasswordEntry(encPassword, encNotes, wrappedAESKey string, privKey *rsa.PrivateKey) (string, string, error)
+	GenerateUserKey(user *user.Users) (*user.UserKey, error)
+	EncryptPasswordEntry(username, password, notes string, pubKey *rsa.PublicKey) (string, string, string, string, error)
+	DecryptPasswordEntry(encUsername, encPassword, encNotes, wrappedAESKey string, privateKey *rsa.PrivateKey) (string, string, string, error)
 }
 
 type encryption struct {
@@ -22,53 +28,113 @@ func NewEncryption() Encryption {
 	return &encryption{}
 }
 
-func (e *encryption) EncryptPasswordEntry(password, notes string, pubKey *rsa.PublicKey) (string, string, string, error) {
+func (e *encryption) GenerateUserKey(data *user.Users) (*user.UserKey, error) {
+	salt := make([]byte, 32)
+	n, err := rand.Read(salt)
+	if err != nil || n != 32 {
+		return nil, fmt.Errorf("failed to generate secure salt: %w", err)
+	}
+
+	aesKey := argon2.IDKey(
+		[]byte(data.ClientID),
+		salt,
+		5,
+		128*1024,
+		8,
+		32,
+	)
+
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return nil, err
+	}
+	publicKeyBytes := x509.MarshalPKCS1PublicKey(&privateKey.PublicKey)
+	privateKeyBytes := x509.MarshalPKCS1PrivateKey(privateKey)
+
+	block, err := aes.NewCipher(aesKey)
+	if err != nil {
+		return nil, err
+	}
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, err
+	}
+	nonce := make([]byte, gcm.NonceSize())
+	if _, err := rand.Read(nonce); err != nil {
+		return nil, fmt.Errorf("failed to generate nonce: %w", err)
+	}
+	ciphertext := gcm.Seal(nonce, nonce, privateKeyBytes, nil)
+
+	return &user.UserKey{
+		UserID:              data.UserID,
+		PublicKey:           base64.StdEncoding.EncodeToString(publicKeyBytes),
+		EncryptedPrivateKey: base64.StdEncoding.EncodeToString(ciphertext),
+		EncryptionAlgorithm: "RSA-2048 + AES-GCM + Argon2id",
+		Salt:                base64.StdEncoding.EncodeToString(salt),
+		CreatedAt:           time.Now(),
+		CreatedBy:           &data.ClientID,
+		UpdatedAt:           time.Now(),
+		UpdatedBy:           &data.UpdatedBy,
+	}, nil
+}
+
+func (e *encryption) EncryptPasswordEntry(username, password, notes string, pubKey *rsa.PublicKey) (string, string, string, string, error) {
 	aesKey := make([]byte, 32)
 	_, err := rand.Read(aesKey)
 	if err != nil {
-		return "", "", "", err
+		return "", "", "", "", err
 	}
 
-	// AES encryption for password
+	encUsername, err := encryptWithAES([]byte(username), aesKey)
+	if err != nil {
+		return "", "", "", "", err
+	}
+
 	encPassword, err := encryptWithAES([]byte(password), aesKey)
 	if err != nil {
-		return "", "", "", err
+		return "", "", "", "", err
 	}
 
-	// AES encryption for notes (optional)
 	encNotes := ""
 	if notes != "" {
 		encNotes, err = encryptWithAES([]byte(notes), aesKey)
 		if err != nil {
-			return "", "", "", err
+			return "", "", "", "", err
 		}
 	}
 
-	// Wrap AES key with RSA public key
 	encryptedAESKey, err := rsa.EncryptOAEP(sha256.New(), rand.Reader, pubKey, aesKey, nil)
+	if err != nil {
+		return "", "", "", "", err
+	}
+
+	return encUsername, encPassword, encNotes, base64.StdEncoding.EncodeToString(encryptedAESKey), nil
+}
+
+func (e *encryption) DecryptPasswordEntry(encUsername, encPassword, encNotes, wrappedAESKey string, privateKey *rsa.PrivateKey) (string, string, string, error) {
+	aesKey, err := rsa.DecryptOAEP(sha256.New(), rand.Reader, privateKey, decode(wrappedAESKey), nil)
 	if err != nil {
 		return "", "", "", err
 	}
 
-	return encPassword, encNotes, base64.StdEncoding.EncodeToString(encryptedAESKey), nil
-}
-
-func (e *encryption) DecryptPasswordEntry(encPassword, encNotes, wrappedAESKey string, privKey *rsa.PrivateKey) (string, string, error) {
-	aesKey, err := rsa.DecryptOAEP(sha256.New(), rand.Reader, privKey, decode(wrappedAESKey), nil)
+	decUsername, err := decryptAES(encUsername, aesKey)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	decPass, err := decryptAES(encPassword, aesKey)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
 	decNotes := ""
 	if encNotes != "" {
-		decNotes, _ = decryptAES(encNotes, aesKey)
+		decNotes, err = decryptAES(encNotes, aesKey)
+		if err != nil {
+			return "", "", "", err
+		}
 	}
-	return decPass, decNotes, nil
+	return decUsername, decPass, decNotes, nil
 }
 
 func encryptWithAES(plaintext, key []byte) (string, error) {
@@ -88,7 +154,6 @@ func encryptWithAES(plaintext, key []byte) (string, error) {
 	return base64.StdEncoding.EncodeToString(ciphertext), nil
 }
 
-// decryptAES is already defined in canvas
 func decode(b64 string) []byte {
 	decoded, _ := base64.StdEncoding.DecodeString(b64)
 	return decoded

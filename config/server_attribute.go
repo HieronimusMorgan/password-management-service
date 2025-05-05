@@ -109,6 +109,7 @@ func (s *ServerConfig) initRepository() {
 		UserKeysRepository:          repository.NewUserKeysRepository(*s.DB),
 		PasswordEntryRepository:     repository.NewPasswordEntryRepository(*s.DB),
 		PasswordEntryKeysRepository: repository.NewPasswordEntryKeysRepository(*s.DB),
+		PasswordGroupRepository:     repository.NewPasswordGroupRepository(*s.DB),
 		PasswordHistoryRepository:   repository.NewPasswordHistoryRepository(*s.DB),
 	}
 }
@@ -120,7 +121,13 @@ func (s *ServerConfig) initServices() {
 			s.Repository.UserKeysRepository,
 			s.Repository.PasswordEntryRepository,
 			s.Repository.PasswordEntryKeysRepository,
+			s.Repository.PasswordGroupRepository,
 			s.Encryption.EncryptionService,
+			s.Redis),
+		PasswordGroupService: services.NewPasswordGroupService(
+			s.Repository.UserRepository,
+			s.Repository.PasswordGroupRepository,
+			s.Repository.PasswordEntryRepository,
 			s.Redis),
 	}
 }
@@ -128,6 +135,7 @@ func (s *ServerConfig) initServices() {
 func (s *ServerConfig) initController() {
 	s.Controller = Controller{
 		PasswordEntryController: controller.NewPasswordEntryController(s.Services.PasswordEntryService, s.JWTService),
+		PasswordGroupController: controller.NewPasswordGroupController(s.Services.PasswordGroupService, s.JWTService),
 	}
 }
 

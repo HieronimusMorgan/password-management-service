@@ -2,15 +2,18 @@ package repository
 
 import (
 	"gorm.io/gorm"
+	"password-management-service/internal/dto/out"
 	"password-management-service/internal/models/password"
 	"password-management-service/internal/utils"
 )
 
 type PasswordEntryRepository interface {
 	AddPasswordEntry(passwordEntry *password.PasswordEntry, passwordEntryKey *password.PasswordEntryKey) error
-	UpdatePasswordEntry(passwordEntry password.PasswordEntry) error
+	UpdatePasswordEntry(passwordEntry *password.PasswordEntry) error
+	UpdatePasswordEntryAndEntryKey(passwordEntry password.PasswordEntry, passwordEntryKey password.PasswordEntryKey) error
 	DeletePasswordEntry(entryID uint) error
-	GetPasswordEntryByEntryID(entryID uint) (*password.PasswordEntry, error)
+	GetListPasswordEntryResponse(userID uint) ([]out.PasswordEntryListResponse, error)
+	GetPasswordEntryByEntryIDAndUserID(entryID, userID uint) (*password.PasswordEntry, error)
 	GetPasswordEntryByUserID(userID string) ([]password.PasswordEntry, error)
 	GetPasswordEntryByGroupID(groupID uint) ([]password.PasswordEntry, error)
 	GetPasswordEntryByGroupIDAndUserID(groupID uint, userID string) ([]password.PasswordEntry, error)
@@ -41,23 +44,61 @@ func (r *passwordEntryRepository) AddPasswordEntry(passwordEntry *password.Passw
 	})
 }
 
-func (r *passwordEntryRepository) UpdatePasswordEntry(passwordEntry password.PasswordEntry) error {
-	if err := r.db.Save(&passwordEntry).Error; err != nil {
-		return err
-	}
-	return nil
+func (r *passwordEntryRepository) UpdatePasswordEntry(passwordEntry *password.PasswordEntry) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Table(utils.TablePasswordEntryName).Where("entry_id = ?", passwordEntry.EntryID).Updates(&passwordEntry).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+}
+
+func (r *passwordEntryRepository) UpdatePasswordEntryAndEntryKey(passwordEntry password.PasswordEntry, passwordEntryKey password.PasswordEntryKey) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Table(utils.TablePasswordEntryName).Where("entry_id = ?", passwordEntry.EntryID).Updates(&passwordEntry).Error; err != nil {
+			return err
+		}
+		if err := tx.Table(utils.TablePasswordEntryKeyName).Where("entry_id = ?", passwordEntry.EntryID).Updates(&passwordEntryKey).Error; err != nil {
+			return err
+		}
+		return nil
+
+	})
 }
 
 func (r *passwordEntryRepository) DeletePasswordEntry(entryID uint) error {
-	if err := r.db.Delete(&password.PasswordEntry{}, entryID).Error; err != nil {
+	if err := r.db.Unscoped().Table(utils.TablePasswordEntryName).Delete(&password.PasswordEntry{}, entryID).Error; err != nil {
 		return err
 	}
 	return nil
 }
 
-func (r *passwordEntryRepository) GetPasswordEntryByEntryID(entryID uint) (*password.PasswordEntry, error) {
+func (r *passwordEntryRepository) GetListPasswordEntryResponse(userID uint) ([]out.PasswordEntryListResponse, error) {
+	var passwordEntry []out.PasswordEntryListResponse
+
+	err := r.db.Raw(`
+		SELECT 
+			pe.entry_id, 
+			pe.title, 
+			pe.username, 
+			pe.url, 
+			pe.tags, 
+			pg.name AS group_name
+		FROM password_entries pe
+		LEFT JOIN password_groups pg ON pg.group_id = pe.group_id
+		WHERE pe.user_id = ? AND pe.deleted_at IS NULL
+		ORDER BY pe.entry_id ASC
+	`, userID).Scan(&passwordEntry).Error
+
+	if err != nil {
+		return nil, err
+	}
+	return passwordEntry, nil
+}
+
+func (r *passwordEntryRepository) GetPasswordEntryByEntryIDAndUserID(entryID, userID uint) (*password.PasswordEntry, error) {
 	var passwordEntry password.PasswordEntry
-	if err := r.db.Where("entry_id = ?", entryID).First(&passwordEntry).Error; err != nil {
+	if err := r.db.Where("entry_id = ? AND user_id = ?", entryID, userID).First(&passwordEntry).Error; err != nil {
 		return nil, err
 	}
 	return &passwordEntry, nil

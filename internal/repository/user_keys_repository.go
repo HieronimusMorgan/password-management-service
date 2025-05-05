@@ -13,7 +13,8 @@ import (
 )
 
 type UserKeysRepository interface {
-	GetUserKeys(userID uint) (user.UserKey, error)
+	AddUserKey(key *user.UserKey) error
+	GetUserKeys(userID uint) (*user.UserKey, error)
 	GetPublicKeyByUserID(userID uint) (*rsa.PublicKey, error)
 	GetPrivateKeyByUserID(userID uint, clientID string) (*rsa.PrivateKey, error)
 }
@@ -27,12 +28,22 @@ func NewUserKeysRepository(db gorm.DB) UserKeysRepository {
 		db: db,
 	}
 }
-func (r *userKeysRepository) GetUserKeys(userID uint) (user.UserKey, error) {
+
+func (r *userKeysRepository) AddUserKey(key *user.UserKey) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Table(utils.TableUserKeyName).Create(&key).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+}
+
+func (r *userKeysRepository) GetUserKeys(userID uint) (*user.UserKey, error) {
 	var userKey user.UserKey
 	if err := r.db.Table(utils.TableUserKeyName).Where("user_id = ?", userID).First(&userKey).Error; err != nil {
-		return userKey, err
+		return &userKey, err
 	}
-	return userKey, nil
+	return &userKey, nil
 }
 
 func (r *userKeysRepository) GetPublicKeyByUserID(userID uint) (*rsa.PublicKey, error) {
@@ -75,9 +86,4 @@ func (r *userKeysRepository) GetPrivateKeyByUserID(userID uint, clientID string)
 		return nil, err
 	}
 	return x509.ParsePKCS1PrivateKey(privDER)
-}
-
-func decode(b64 string) []byte {
-	decoded, _ := base64.StdEncoding.DecodeString(b64)
-	return decoded
 }
