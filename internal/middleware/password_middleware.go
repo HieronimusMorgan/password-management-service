@@ -56,7 +56,7 @@ func (a passwordMiddleware) HandlerPassword() gin.HandlerFunc {
 			return
 		}
 
-		if !jwt.HasAssetResource(tokenClaims.Resource) {
+		if !jwt.HasPasswordResource(tokenClaims.Resource) {
 			response.SendResponse(c, http.StatusUnauthorized, "Unauthorized", nil, "You are not authorized to access this resource")
 			c.Abort()
 			return

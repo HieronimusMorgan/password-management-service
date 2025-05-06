@@ -175,9 +175,9 @@ func ExtractTokenClaims(c *gin.Context) (*TokenClaims, bool) {
 	return tokenClaims, true
 }
 
-func HasAssetResource(resource []string) bool {
+func HasPasswordResource(resource []string) bool {
 	for _, res := range resource {
-		if res == "asset" {
+		if res == "password-management" {
 			return true
 		}
 	}

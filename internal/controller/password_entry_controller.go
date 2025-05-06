@@ -39,19 +39,19 @@ func (c *passwordEntryController) AddPasswordEntry(context *gin.Context) {
 		response.SendResponse(context, http.StatusBadRequest, "Error", nil, "Token not found")
 		return
 	}
-	//
-	//credentialKey := context.GetHeader(utils.XCredentialKey)
-	//if credentialKey == "" {
-	//	response.SendResponse(context, http.StatusBadRequest, "Error", nil, "credential key not found")
-	//	return
-	//}
+
+	requestID := context.GetHeader(utils.XRequestID)
+	if requestID == "" {
+		response.SendResponse(context, http.StatusBadRequest, "Error", nil, "credential key not found")
+		return
+	}
 
 	if err := context.ShouldBindJSON(&req); err != nil {
 		response.SendResponse(context, http.StatusBadRequest, "Error", nil, err.Error())
 		return
 	}
 
-	if err := c.PasswordEntryService.AddPasswordEntry(&req, token.ClientID); err != nil {
+	if err := c.PasswordEntryService.AddPasswordEntry(&req, token.ClientID, requestID); err != nil {
 		response.SendResponse(context, http.StatusInternalServerError, "Error", nil, err.Error())
 		return
 	}

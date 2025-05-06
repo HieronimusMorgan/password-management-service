@@ -11,6 +11,7 @@ const (
 const (
 	Authorization  = "Authorization"
 	XCredentialKey = "X-CREDENTIAL-KEY"
+	XRequestID     = "X-REQUEST-ID"
 	ClientID       = "client_id"
 )
 

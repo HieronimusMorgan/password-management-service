@@ -13,7 +13,7 @@ import (
 )
 
 type PasswordEntryService interface {
-	AddPasswordEntry(passwordEntryRequest *in.PasswordEntryRequest, clientID string) error
+	AddPasswordEntry(passwordEntryRequest *in.PasswordEntryRequest, clientID string, requestID string) error
 	UpdatePasswordEntry(passwordEntryID uint, passwordEntryRequest *in.PasswordEntryRequest, clientID string) error
 	AddGroupPasswordEntry(passwordEntryID uint, groupID struct {
 		GroupID uint `json:"group_id"`
@@ -52,12 +52,25 @@ func NewPasswordEntryService(
 	}
 }
 
-func (s *passwordEntryService) AddPasswordEntry(passwordEntryRequest *in.PasswordEntryRequest, clientID string) error {
+func (s *passwordEntryService) AddPasswordEntry(passwordEntryRequest *in.PasswordEntryRequest, clientID string, verifyCode string) error {
 	data, err := redis.GetUserRedis(s.Redis, utils.User, clientID)
 	if err != nil {
 		log.Error().Str("clientID", clientID).Err(err).Msg("Failed to retrieve data from Redis")
 		return err
 	}
+
+	// Verify the code
+	var code string
+	if err := s.Redis.GetData(utils.PinVerify, data.ClientID, code); err != nil {
+		log.Error().Str("clientID", clientID).Err(err).Msg("Failed to verify code")
+		return err
+	}
+
+	if code != verifyCode {
+		log.Error().Str("clientID", clientID).Msg("Invalid verification code")
+		return errors.New("invalid verification code")
+	}
+
 	user, err := s.UserRepository.GetUserByClientID(data.ClientID)
 	if err != nil {
 		log.Error().Str("clientID", clientID).Err(err).Msg("Failed to retrieve user by client ID")
