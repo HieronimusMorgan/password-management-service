@@ -42,7 +42,7 @@ func (c *passwordEntryController) AddPasswordEntry(context *gin.Context) {
 
 	requestID := context.GetHeader(utils.XRequestID)
 	if requestID == "" {
-		response.SendResponse(context, http.StatusBadRequest, "Error", nil, "credential key not found")
+		response.SendResponse(context, http.StatusBadRequest, "Error", nil, "request id not found")
 		return
 	}
 

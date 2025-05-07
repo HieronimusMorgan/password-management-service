@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/rs/zerolog/log"
 	"password-management-service/internal/dto/in"
+	"password-management-service/internal/dto/out"
 	"password-management-service/internal/models/password"
 	"password-management-service/internal/repository"
 	"password-management-service/internal/utils"
@@ -60,13 +61,13 @@ func (s *passwordEntryService) AddPasswordEntry(passwordEntryRequest *in.Passwor
 	}
 
 	// Verify the code
-	var code string
-	if err := s.Redis.GetData(utils.PinVerify, data.ClientID, code); err != nil {
+	var verify *out.VerifyPinCodeResponse
+	if err := s.Redis.GetData(utils.PinVerify, data.ClientID, &verify); err != nil {
 		log.Error().Str("clientID", clientID).Err(err).Msg("Failed to verify code")
 		return err
 	}
 
-	if code != verifyCode {
+	if verify.RequestID != verifyCode {
 		log.Error().Str("clientID", clientID).Msg("Invalid verification code")
 		return errors.New("invalid verification code")
 	}
