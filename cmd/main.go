@@ -30,6 +30,7 @@ func main() {
 	// Initialize routes
 	routes.PasswordEntryRoutes(engine, serverConfig.Middleware, serverConfig.Controller.PasswordEntryController)
 	routes.PasswordGroupRoutes(engine, serverConfig.Middleware, serverConfig.Controller.PasswordGroupController)
+	routes.PasswordTagRoutes(engine, serverConfig.Middleware, serverConfig.Controller.PasswordTagController)
 
 	// Run server
 	log.Println("Starting server on :8082")

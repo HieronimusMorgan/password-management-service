@@ -32,6 +32,7 @@ type ServerConfig struct {
 type Services struct {
 	PasswordEntryService services.PasswordEntryService
 	PasswordGroupService services.PasswordGroupService
+	PasswordTagService   services.PasswordTagService
 }
 
 // Repository contains repository (database access objects)
@@ -40,6 +41,7 @@ type Repository struct {
 	UserKeysRepository          repository.UserKeysRepository
 	PasswordEntryRepository     repository.PasswordEntryRepository
 	PasswordEntryKeysRepository repository.PasswordEntryKeysRepository
+	PasswordTagRepository       repository.PasswordTagRepository
 	PasswordGroupRepository     repository.PasswordGroupRepository
 	PasswordHistoryRepository   repository.PasswordHistoryRepository
 	SharedPasswordRepository    repository.SharedPasswordRepository
@@ -48,6 +50,7 @@ type Repository struct {
 type Controller struct {
 	PasswordEntryController controller.PasswordEntryController
 	PasswordGroupController controller.PasswordGroupController
+	PasswordTagController   controller.PasswordTagController
 }
 
 type Middleware struct {

@@ -88,16 +88,11 @@ func (c *passwordEntryController) UpdatePasswordEntry(context *gin.Context) {
 func (c *passwordEntryController) AddGroupPasswordEntry(context *gin.Context) {
 	var req struct {
 		GroupID uint `json:"group_id"`
+		EntryID uint `json:"entry_id"`
 	}
 
 	if err := context.ShouldBindJSON(&req); err != nil {
 		response.SendResponse(context, http.StatusBadRequest, "Error", nil, err.Error())
-		return
-	}
-
-	entryID, err := utils.ConvertToUint(context.Param("id"))
-	if err != nil {
-		response.SendResponse(context, http.StatusBadRequest, "Resource MaintenanceTypeID must be a number", nil, err.Error())
 		return
 	}
 
@@ -107,7 +102,7 @@ func (c *passwordEntryController) AddGroupPasswordEntry(context *gin.Context) {
 		return
 	}
 
-	if err := c.PasswordEntryService.AddGroupPasswordEntry(entryID, req, token.ClientID); err != nil {
+	if err := c.PasswordEntryService.AddGroupPasswordEntry(req, token.ClientID); err != nil {
 		response.SendResponse(context, http.StatusInternalServerError, "Error", nil, err.Error())
 		return
 	}
@@ -121,12 +116,31 @@ func (c *passwordEntryController) GetListPasswordEntries(context *gin.Context) {
 		return
 	}
 
-	passwordEntries, err := c.PasswordEntryService.GetListPasswordEntries(token.ClientID)
+	pageIndex, pageSize, err := utils.GetPageIndexPageSize(context)
 	if err != nil {
-		response.SendResponse(context, http.StatusInternalServerError, "Error", nil, err.Error())
+		response.SendResponse(context, 400, "Invalid page index or page size", nil, err.Error())
 		return
 	}
-	response.SendResponse(context, http.StatusOK, "Success", passwordEntries, nil)
+
+	tagsParam := context.Query("tags")
+
+	passwordEntries, total, err := c.PasswordEntryService.GetListPasswordEntries(token.ClientID, tagsParam, pageIndex, pageSize)
+	if err != nil {
+		response.SendResponseList(context, 500, "Failed to get list password entry", response.PagedData{
+			Total:     total,
+			PageIndex: pageIndex,
+			PageSize:  pageSize,
+			Items:     nil,
+		}, err.Error())
+		return
+	}
+
+	response.SendResponseList(context, 200, "Get list password entry successfully", response.PagedData{
+		Total:     total,
+		PageIndex: pageIndex,
+		PageSize:  pageSize,
+		Items:     passwordEntries,
+	}, nil)
 }
 
 func (c *passwordEntryController) GetPasswordEntryByID(context *gin.Context) {

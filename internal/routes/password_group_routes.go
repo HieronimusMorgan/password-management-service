@@ -13,6 +13,7 @@ func PasswordGroupRoutes(r *gin.Engine, middleware config.Middleware, controller
 		routerGroup.POST("/", controller.AddPasswordGroup)
 		routerGroup.PUT("/:id", controller.UpdatePasswordGroup)
 		routerGroup.GET("/", controller.GetListPasswordGroup)
+		routerGroup.GET("/item/:id", controller.GetItemListPasswordGroup)
 		routerGroup.DELETE("/:id", controller.DeletePasswordGroup)
 	}
 }

@@ -69,3 +69,29 @@ CREATE TABLE password_history
 );
 CREATE INDEX idx_password_history_entry_id ON password_history (entry_id);
 CREATE INDEX idx_password_history_history_id ON password_history (history_id);
+
+CREATE TABLE password_tags
+(
+    tag_id     SERIAL PRIMARY KEY,
+    user_id    SERIAL,
+    name       VARCHAR(50) NOT NULL UNIQUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_by VARCHAR(255),
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_by VARCHAR(255),
+    deleted_at TIMESTAMP NULL,
+    deleted_by VARCHAR(255)
+);
+
+CREATE INDEX idx_password_tags_tag_id ON password_tags (tag_id);
+CREATE INDEX idx_password_tags_user_id ON password_tags (user_id);
+CREATE INDEX idx_password_tags_name ON password_tags (name);
+
+CREATE TABLE password_entry_tags
+(
+    entry_id INT NOT NULL REFERENCES password_entries (entry_id) ON DELETE CASCADE,
+    tag_id   INT NOT NULL REFERENCES password_tags (tag_id) ON DELETE CASCADE,
+    PRIMARY KEY (entry_id, tag_id)
+);
+CREATE INDEX idx_password_entry_tags_entry_id ON password_entry_tags (entry_id);
+CREATE INDEX idx_password_entry_tags_tag_id ON password_entry_tags (tag_id);

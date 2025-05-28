@@ -109,6 +109,7 @@ func (s *ServerConfig) initRepository() {
 		UserKeysRepository:          repository.NewUserKeysRepository(*s.DB),
 		PasswordEntryRepository:     repository.NewPasswordEntryRepository(*s.DB),
 		PasswordEntryKeysRepository: repository.NewPasswordEntryKeysRepository(*s.DB),
+		PasswordTagRepository:       repository.NewPasswordTagRepository(*s.DB),
 		PasswordGroupRepository:     repository.NewPasswordGroupRepository(*s.DB),
 		PasswordHistoryRepository:   repository.NewPasswordHistoryRepository(*s.DB),
 		SharedPasswordRepository:    repository.NewSharedPasswordRepository(*s.DB),
@@ -122,6 +123,7 @@ func (s *ServerConfig) initServices() {
 			s.Repository.UserKeysRepository,
 			s.Repository.PasswordEntryRepository,
 			s.Repository.PasswordEntryKeysRepository,
+			s.Repository.PasswordTagRepository,
 			s.Repository.PasswordGroupRepository,
 			s.Encryption.EncryptionService,
 			s.Redis),
@@ -130,6 +132,10 @@ func (s *ServerConfig) initServices() {
 			s.Repository.PasswordGroupRepository,
 			s.Repository.PasswordEntryRepository,
 			s.Redis),
+		PasswordTagService: services.NewPasswordTagService(
+			s.Repository.UserRepository,
+			s.Repository.PasswordTagRepository,
+			s.Redis),
 	}
 }
 
@@ -137,6 +143,7 @@ func (s *ServerConfig) initController() {
 	s.Controller = Controller{
 		PasswordEntryController: controller.NewPasswordEntryController(s.Services.PasswordEntryService, s.JWTService),
 		PasswordGroupController: controller.NewPasswordGroupController(s.Services.PasswordGroupService, s.JWTService),
+		PasswordTagController:   controller.NewPasswordTagController(s.Services.PasswordTagService, s.JWTService),
 	}
 }
 

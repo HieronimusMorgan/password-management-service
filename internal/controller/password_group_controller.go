@@ -14,6 +14,7 @@ type PasswordGroupController interface {
 	AddPasswordGroup(context *gin.Context)
 	UpdatePasswordGroup(context *gin.Context)
 	GetListPasswordGroup(context *gin.Context)
+	GetItemListPasswordGroup(context *gin.Context)
 	DeletePasswordGroup(context *gin.Context)
 }
 
@@ -96,6 +97,28 @@ func (c *passwordGroupController) GetListPasswordGroup(context *gin.Context) {
 	}
 
 	response.SendResponse(context, http.StatusOK, "Success", passwordGroups, nil)
+}
+
+func (c *passwordGroupController) GetItemListPasswordGroup(context *gin.Context) {
+	passwordGroupID, err := utils.ConvertToUint(context.Param("id"))
+	if err != nil {
+		response.SendResponse(context, http.StatusBadRequest, "Error", nil, err.Error())
+		return
+	}
+
+	token, exist := jwt.ExtractTokenClaims(context)
+	if !exist {
+		response.SendResponse(context, http.StatusBadRequest, "Error", nil, "Token not found")
+		return
+	}
+
+	passwordGroup, err := c.PasswordGroupService.GetItemListPasswordGroup(passwordGroupID, token.ClientID)
+	if err != nil {
+		response.SendResponse(context, http.StatusInternalServerError, "Error", nil, err.Error())
+		return
+	}
+
+	response.SendResponse(context, http.StatusOK, "Success", passwordGroup, nil)
 }
 
 func (c *passwordGroupController) DeletePasswordGroup(context *gin.Context) {

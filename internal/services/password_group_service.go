@@ -16,6 +16,7 @@ type PasswordGroupService interface {
 		Name string `json:"name" binding:"required"`
 	}, clientID string) (interface{}, error)
 	GetListPasswordGroup(clientID string) (interface{}, error)
+	GetItemListPasswordGroup(groupID uint, clientID string) (interface{}, error)
 	GetPasswordGroupByID(groupID uint, clientID string) (interface{}, error)
 	DeletePasswordGroupByID(groupID uint, clientID string) error
 }
@@ -117,6 +118,27 @@ func (s *passwordGroupService) GetListPasswordGroup(clientID string) (interface{
 	}
 
 	return passwordGroups, nil
+}
+
+func (s *passwordGroupService) GetItemListPasswordGroup(groupID uint, clientID string) (interface{}, error) {
+	data, err := redis.GetUserRedis(s.Redis, utils.User, clientID)
+	if err != nil {
+		log.Error().Str("clientID", clientID).Err(err).Msg("Failed to retrieve data from Redis")
+		return nil, err
+	}
+	user, err := s.UserRepository.GetUserByClientID(data.ClientID)
+	if err != nil {
+		log.Error().Str("clientID", clientID).Err(err).Msg("Failed to retrieve user by client ID")
+		return nil, err
+	}
+
+	passwordEntry, err := s.PasswordGroupRepository.GetItemListPasswordGroup(groupID, user.UserID)
+	if err != nil {
+		log.Error().Str("clientID", clientID).Err(err).Msg("Failed to retrieve password groups by user ID")
+		return nil, err
+	}
+
+	return passwordEntry, nil
 }
 
 func (s *passwordGroupService) GetPasswordGroupByID(groupID uint, clientID string) (interface{}, error) {

@@ -10,5 +10,5 @@ type PasswordEntryRequest struct {
 	Password string          `json:"password"`
 	Notes    *string         `json:"notes"`
 	URL      *string         `json:"url"`
-	Tags     *pq.StringArray `json:"tags" gorm:"type:text[]"`
+	Tags     *pq.StringArray `json:"tags"`
 }

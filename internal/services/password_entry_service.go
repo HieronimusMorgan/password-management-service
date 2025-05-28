@@ -16,11 +16,12 @@ import (
 type PasswordEntryService interface {
 	AddPasswordEntry(passwordEntryRequest *in.PasswordEntryRequest, clientID string, requestID string) error
 	UpdatePasswordEntry(passwordEntryID uint, passwordEntryRequest *in.PasswordEntryRequest, clientID string) error
-	AddGroupPasswordEntry(passwordEntryID uint, groupID struct {
+	AddGroupPasswordEntry(req struct {
 		GroupID uint `json:"group_id"`
+		EntryID uint `json:"entry_id"`
 	}, clientID string) error
 	GetPasswordEntryByID(passwordEntryID uint, clientID string) (interface{}, error)
-	GetListPasswordEntries(clientID string) (interface{}, error)
+	GetListPasswordEntries(clientID string, tags string, index int, size int) (interface{}, int64, error)
 	DeletePasswordEntry(passwordEntryID uint, clientID string) error
 }
 
@@ -29,6 +30,7 @@ type passwordEntryService struct {
 	UserKeyRepository          repository.UserKeysRepository
 	PasswordEntryRepository    repository.PasswordEntryRepository
 	PasswordEntryKeyRepository repository.PasswordEntryKeysRepository
+	PasswordTagRepository      repository.PasswordTagRepository
 	PasswordGroupRepository    repository.PasswordGroupRepository
 	EncryptionService          encryption.Encryption
 	Redis                      redis.RedisService
@@ -39,6 +41,7 @@ func NewPasswordEntryService(
 	userKeyRepository repository.UserKeysRepository,
 	passwordEntryRepository repository.PasswordEntryRepository,
 	passwordEntryKeysRepository repository.PasswordEntryKeysRepository,
+	PasswordTagRepository repository.PasswordTagRepository,
 	PasswordGroupRepository repository.PasswordGroupRepository,
 	encryptionService encryption.Encryption,
 	redis redis.RedisService) PasswordEntryService {
@@ -47,6 +50,7 @@ func NewPasswordEntryService(
 		UserKeyRepository:          userKeyRepository,
 		PasswordEntryRepository:    passwordEntryRepository,
 		PasswordEntryKeyRepository: passwordEntryKeysRepository,
+		PasswordTagRepository:      PasswordTagRepository,
 		PasswordGroupRepository:    PasswordGroupRepository,
 		EncryptionService:          encryptionService,
 		Redis:                      redis,
@@ -109,7 +113,6 @@ func (s *passwordEntryService) AddPasswordEntry(passwordEntryRequest *in.Passwor
 		EncryptedPassword: encryptPassword,
 		EncryptedNotes:    &notes,
 		URL:               passwordEntryRequest.URL,
-		Tags:              passwordEntryRequest.Tags,
 		CreatedBy:         &clientID,
 		UpdatedBy:         &clientID,
 	}
@@ -118,7 +121,7 @@ func (s *passwordEntryService) AddPasswordEntry(passwordEntryRequest *in.Passwor
 		EncryptedSymmetricKey: wrappedKey,
 	}
 
-	if err := s.PasswordEntryRepository.AddPasswordEntry(&passwordEntry, &passwordEntryKey); err != nil {
+	if err := s.PasswordEntryRepository.AddPasswordEntry(&passwordEntry, &passwordEntryKey, *passwordEntryRequest.Tags, user.UserID); err != nil {
 		return err
 	}
 
@@ -168,6 +171,11 @@ func (s *passwordEntryService) UpdatePasswordEntry(passwordEntryID uint, passwor
 		return err
 	}
 
+	passwordTags, err := s.PasswordTagRepository.GetPasswordTagsByEntryID(entry.EntryID)
+	if err != nil {
+		log.Error().Str("clientID", clientID).Err(err).Msg("Failed to retrieve password tags")
+	}
+
 	passwordEntry := password.PasswordEntry{
 		EntryID:           entry.EntryID,
 		Title:             passwordEntryRequest.Title,
@@ -176,7 +184,7 @@ func (s *passwordEntryService) UpdatePasswordEntry(passwordEntryID uint, passwor
 		EncryptedPassword: encryptPassword,
 		EncryptedNotes:    &notes,
 		URL:               passwordEntryRequest.URL,
-		Tags:              passwordEntryRequest.Tags,
+		Tags:              passwordTags,
 		UpdatedBy:         &clientID,
 	}
 
@@ -191,8 +199,9 @@ func (s *passwordEntryService) UpdatePasswordEntry(passwordEntryID uint, passwor
 	return nil
 }
 
-func (s *passwordEntryService) AddGroupPasswordEntry(passwordEntryID uint, req struct {
+func (s *passwordEntryService) AddGroupPasswordEntry(req struct {
 	GroupID uint `json:"group_id"`
+	EntryID uint `json:"entry_id"`
 }, clientID string) error {
 	data, err := redis.GetUserRedis(s.Redis, utils.User, clientID)
 	if err != nil {
@@ -206,7 +215,7 @@ func (s *passwordEntryService) AddGroupPasswordEntry(passwordEntryID uint, req s
 		return err
 	}
 
-	entry, err := s.PasswordEntryRepository.GetPasswordEntryByEntryIDAndUserID(passwordEntryID, user.UserID)
+	entry, err := s.PasswordEntryRepository.GetPasswordEntryByEntryIDAndUserID(req.EntryID, user.UserID)
 	if err != nil {
 		log.Error().Str("clientID", clientID).Err(err).Msg("Failed to retrieve password entry")
 		return err
@@ -288,28 +297,30 @@ func (s *passwordEntryService) GetPasswordEntryByID(passwordEntryID uint, client
 	return passwordEntry, nil
 }
 
-func (s *passwordEntryService) GetListPasswordEntries(clientID string) (interface{}, error) {
+func (s *passwordEntryService) GetListPasswordEntries(clientID string, tags string, index int, size int) (interface{}, int64, error) {
 	data, err := redis.GetUserRedis(s.Redis, utils.User, clientID)
 	if err != nil {
 		log.Error().Str("clientID", clientID).Err(err).Msg("Failed to retrieve data from Redis")
-		return nil, err
+		return nil, 0, err
 	}
 	user, err := s.UserRepository.GetUserByClientID(data.ClientID)
 	if err != nil {
 		log.Error().Str("clientID", clientID).Err(err).Msg("Failed to retrieve user by client ID")
-		return nil, err
+		return nil, 0, err
 	}
 	if user == nil {
 		log.Error().Str("clientID", clientID).Msg("User not found")
-		return nil, errors.New("user not found")
+		return nil, 0, errors.New("user not found")
 	}
 
-	passwordEntries, err := s.PasswordEntryRepository.GetListPasswordEntryResponse(user.UserID)
+	totalPasswordEntries, err := s.PasswordEntryRepository.GetCountPasswordEntriesByUserID(user.UserID)
+
+	passwordEntries, err := s.PasswordEntryRepository.GetListPasswordEntryResponse(user.UserID, tags, index, size)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	return passwordEntries, nil
+	return passwordEntries, totalPasswordEntries, nil
 }
 
 func (s *passwordEntryService) DeletePasswordEntry(passwordEntryID uint, clientID string) error {
