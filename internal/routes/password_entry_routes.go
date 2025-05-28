@@ -7,7 +7,6 @@ import (
 )
 
 func PasswordEntryRoutes(r *gin.Engine, middleware config.Middleware, controller controller.PasswordEntryController) {
-
 	routerGroup := r.Group("/v1/entry")
 	routerGroup.Use(middleware.PasswordMiddleware.HandlerPassword())
 	{
