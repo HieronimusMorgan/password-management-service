@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  app:
+    container_name: password_management_service
+    build: .
+    ports:
+      - "${APP_PORT}:8082"
+    environment:
+      APP_PORT: ${APP_PORT}
+      JWT_SECRET: ${JWT_SECRET}
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      DB_SCHEMA: ${DB_SCHEMA}
+      DB_SSLMODE: ${DB_SSLMODE}
+      REDIS_HOST: ${REDIS_HOST}
+      REDIS_PORT: ${REDIS_PORT}
+      REDIS_DB: ${REDIS_DB}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      CDN_URL: ${CDN_URL}
+      NATS_URL: ${NATS_URL}
+      GIN_MODE: ${GIN_MODE}
+    restart: always
